@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Animation Test</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+        }
+        
+        .section {
+            min-height: 100vh;
+            padding: 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+        }
+        
+        .home { background: #1a1a1a; color: white; }
+        .about { background: #f5f5f5; color: #333; }
+        .projects { background: white; color: #333; }
+        .skills { background: #f0f0f0; color: #333; }
+        .contact { background: #2a2a2a; color: white; }
+        
+        .nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: rgba(0,0,0,0.8);
+            padding: 1rem;
+            z-index: 1000;
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+        }
+        
+        .nav a {
+            color: white;
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 25px;
+            transition: all 0.3s ease;
+        }
+        
+        .nav a:hover {
+            background: white;
+            color: black;
+        }
+        
+        .animate-element {
+            opacity: 0;
+            transform: translateY(50px);
+            transition: all 0.6s ease;
+        }
+        
+        .animate-element.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        
+        .animate-slide-left {
+            opacity: 0;
+            transform: translateX(-100px);
+            transition: all 0.8s ease;
+        }
+        
+        .animate-slide-left.visible {
+            opacity: 1;
+            transform: translateX(0);
+        }
+        
+        .animate-slide-right {
+            opacity: 0;
+            transform: translateX(100px);
+            transition: all 0.8s ease;
+        }
+        
+        .animate-slide-right.visible {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    </style>
+</head>
+<body>
+    <nav class="nav">
+        <a href="#home" onclick="navigateToSection('home')">Home</a>
+        <a href="#about" onclick="navigateToSection('about')">About</a>
+        <a href="#projects" onclick="navigateToSection('projects')">Projects</a>
+        <a href="#skills" onclick="navigateToSection('skills')">Skills</a>
+        <a href="#contact" onclick="navigateToSection('contact')">Contact</a>
+    </nav>
+
+    <section id="home" class="section home">
+        <h1 class="animate-element" data-section="home">Welcome to My Portfolio</h1>
+        <p class="animate-element" data-section="home">This is the home section</p>
+    </section>
+
+    <section id="about" class="section about">
+        <h1 class="animate-element" data-section="about">About Me</h1>
+        <div class="animate-slide-left" data-section="about">
+            <p>This content slides in from the left</p>
+        </div>
+        <div class="animate-slide-right" data-section="about">
+            <p>This content slides in from the right</p>
+        </div>
+    </section>
+
+    <section id="projects" class="section projects">
+        <h1 class="animate-element" data-section="projects">My Projects</h1>
+        <div class="animate-element" data-section="projects">
+            <p>Project animations will trigger here</p>
+        </div>
+    </section>
+
+    <section id="skills" class="section skills">
+        <h1 class="animate-element" data-section="skills">Skills & Technologies</h1>
+        <div class="animate-slide-left" data-section="skills">
+            <p>Skills content with animations</p>
+        </div>
+    </section>
+
+    <section id="contact" class="section contact">
+        <h1 class="animate-element" data-section="contact">Get In Touch</h1>
+        <div class="animate-slide-right" data-section="contact">
+            <p>Contact form with animations</p>
+        </div>
+    </section>
+
+    <script>
+        // Animation system
+        function triggerAnimations(sectionId) {
+            console.log('Triggering animations for:', sectionId);
+            
+            // Reset all animations first
+            document.querySelectorAll('.animate-element, .animate-slide-left, .animate-slide-right').forEach(el => {
+                el.classList.remove('visible');
+            });
+            
+            // Trigger animations for the target section
+            setTimeout(() => {
+                document.querySelectorAll(`[data-section="${sectionId}"]`).forEach(el => {
+                    el.classList.add('visible');
+                });
+            }, 100);
+        }
+        
+        function navigateToSection(sectionId) {
+            console.log('Navigating to:', sectionId);
+            
+            // Update URL
+            window.location.hash = '#' + sectionId;
+            
+            // Trigger animations
+            triggerAnimations(sectionId);
+            
+            // Scroll to section
+            setTimeout(() => {
+                document.getElementById(sectionId).scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'start'
+                });
+            }, 100);
+        }
+        
+        // Intersection Observer for scroll-triggered animations
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const sectionId = entry.target.id;
+                    console.log('Section visible via scroll:', sectionId);
+                    triggerAnimations(sectionId);
+                }
+            });
+        }, {
+            threshold: 0.3,
+            rootMargin: '0px 0px -100px 0px'
+        });
+        
+        // Observe all sections
+        document.querySelectorAll('.section').forEach(section => {
+            observer.observe(section);
+        });
+        
+        // Handle hash changes
+        window.addEventListener('hashchange', () => {
+            const hash = window.location.hash.substring(1);
+            if (hash) {
+                triggerAnimations(hash);
+            }
+        });
+        
+        // Initial load
+        window.addEventListener('load', () => {
+            const hash = window.location.hash.substring(1) || 'home';
+            triggerAnimations(hash);
+        });
+    </script>
+</body>
+</html>

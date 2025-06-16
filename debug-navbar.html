@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Navbar Detection</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+        }
+        
+        .debug-panel {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            z-index: 1000;
+            font-size: 12px;
+        }
+        
+        .section {
+            min-height: 100vh;
+            padding: 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            border: 3px solid transparent;
+        }
+        
+        .section.active {
+            border-color: red;
+            background-color: rgba(255,0,0,0.1);
+        }
+        
+        .home { background: #1a1a1a; color: white; }
+        .about { background: #f5f5f5; color: #333; }
+        .projects { background: white; color: #333; }
+        .skills { background: #f0f0f0; color: #333; }
+        .contact { background: #2a2a2a; color: white; }
+        
+        .nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: rgba(0,0,0,0.8);
+            padding: 1rem;
+            z-index: 1000;
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+        }
+        
+        .nav a {
+            color: white;
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 25px;
+            transition: all 0.3s ease;
+        }
+        
+        .nav a.active {
+            background: white;
+            color: black;
+        }
+    </style>
+</head>
+<body>
+    <div class="debug-panel">
+        <div>Current Section: <span id="current-section">-</span></div>
+        <div>Scroll Position: <span id="scroll-pos">-</span></div>
+        <div>Active Index: <span id="active-index">-</span></div>
+    </div>
+
+    <nav class="nav">
+        <a href="#home" data-index="0">Home</a>
+        <a href="#about" data-index="1">About</a>
+        <a href="#projects" data-index="2">Projects</a>
+        <a href="#skills" data-index="3">Skills</a>
+        <a href="#contact" data-index="4">Contact</a>
+    </nav>
+
+    <section id="home" class="section home">
+        <h1>Home Section</h1>
+        <p>This is the home section</p>
+    </section>
+
+    <section id="about" class="section about">
+        <h1>About Section</h1>
+        <p>This is the about section</p>
+    </section>
+
+    <section id="projects" class="section projects">
+        <h1>Projects Section</h1>
+        <p>This is the projects section</p>
+    </section>
+
+    <section id="skills" class="section skills">
+        <h1>Skills Section</h1>
+        <p>This is the skills section</p>
+        <p>Check if this section gets detected properly</p>
+    </section>
+
+    <section id="contact" class="section contact">
+        <h1>Contact Section</h1>
+        <p>This is the contact section</p>
+    </section>
+
+    <script>
+        const navItems = [
+            { label: "Home", href: "#home" },
+            { label: "About", href: "#about" },
+            { label: "Projects", href: "#projects" },
+            { label: "Skills", href: "#skills" },
+            { label: "Contact", href: "#contact" },
+        ];
+
+        let activeIndex = 0;
+
+        function updateDebugInfo(sectionId, scrollPos, index) {
+            document.getElementById('current-section').textContent = sectionId;
+            document.getElementById('scroll-pos').textContent = scrollPos;
+            document.getElementById('active-index').textContent = index;
+        }
+
+        function updateActiveNav(index) {
+            document.querySelectorAll('.nav a').forEach((a, i) => {
+                a.classList.toggle('active', i === index);
+            });
+            
+            document.querySelectorAll('.section').forEach((s, i) => {
+                s.classList.toggle('active', i === index);
+            });
+        }
+
+        function handleScroll() {
+            const sections = navItems.map((item, index) => {
+                if (item.href && item.href.startsWith('#')) {
+                    const element = document.querySelector(item.href);
+                    return element ? { element, index, id: item.href.substring(1) } : null;
+                }
+                return null;
+            }).filter(Boolean);
+
+            if (sections.length === 0) return;
+
+            const scrollPosition = window.scrollY;
+            const windowHeight = window.innerHeight;
+            const documentHeight = document.documentElement.scrollHeight;
+
+            // If we're at the bottom of the page, activate the last section
+            if (scrollPosition + windowHeight >= documentHeight - 10) {
+                const lastSectionIndex = sections[sections.length - 1].index;
+                if (lastSectionIndex !== activeIndex) {
+                    console.log(`At bottom - updating to last section: ${navItems[lastSectionIndex]?.label}`);
+                    activeIndex = lastSectionIndex;
+                    updateActiveNav(activeIndex);
+                    updateDebugInfo(sections[sections.length - 1].id, scrollPosition, activeIndex);
+                }
+                return;
+            }
+
+            // Find the section that's most visible in the viewport
+            let currentSectionIndex = 0;
+            let maxVisibleArea = 0;
+
+            sections.forEach(({ element, index, id }) => {
+                const rect = element.getBoundingClientRect();
+                const sectionTop = rect.top;
+                const sectionBottom = rect.bottom;
+                const sectionHeight = rect.height;
+
+                // Calculate how much of the section is visible
+                const visibleTop = Math.max(0, -sectionTop);
+                const visibleBottom = Math.min(sectionHeight, windowHeight - sectionTop);
+                const visibleHeight = Math.max(0, visibleBottom - visibleTop);
+                const visibleArea = visibleHeight / sectionHeight;
+
+                console.log(`${id} - Top: ${sectionTop.toFixed(0)}, Bottom: ${sectionBottom.toFixed(0)}, Visible: ${(visibleArea * 100).toFixed(1)}%`);
+
+                // Prefer sections that are more than 20% visible
+                if (visibleArea > 0.2 && visibleArea > maxVisibleArea) {
+                    maxVisibleArea = visibleArea;
+                    currentSectionIndex = index;
+                }
+
+                // Special case: if section starts near the top of viewport, prioritize it
+                if (sectionTop <= 150 && sectionTop >= -150 && visibleArea > 0.15) {
+                    currentSectionIndex = index;
+                }
+
+                // Additional case: if we're in the middle of a section
+                if (sectionTop < windowHeight * 0.5 && sectionBottom > windowHeight * 0.5 && visibleArea > 0.3) {
+                    currentSectionIndex = index;
+                }
+            });
+
+            // Only update if the section has actually changed
+            if (currentSectionIndex !== activeIndex) {
+                console.log(`Scroll detected - updating active section from ${navItems[activeIndex]?.label} to: ${navItems[currentSectionIndex]?.label} (index: ${currentSectionIndex})`);
+                activeIndex = currentSectionIndex;
+                updateActiveNav(activeIndex);
+            }
+
+            updateDebugInfo(sections.find(s => s.index === currentSectionIndex)?.id || 'unknown', scrollPosition, currentSectionIndex);
+        }
+
+        // Throttle scroll events for better performance
+        let ticking = false;
+        const throttledHandleScroll = () => {
+            if (!ticking) {
+                requestAnimationFrame(() => {
+                    handleScroll();
+                    ticking = false;
+                });
+                ticking = true;
+            }
+        };
+
+        window.addEventListener('scroll', throttledHandleScroll);
+
+        // Initial check
+        setTimeout(handleScroll, 100);
+
+        // Navigation click handlers
+        document.querySelectorAll('.nav a').forEach((link, index) => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                const targetId = link.getAttribute('href').substring(1);
+                const targetElement = document.getElementById(targetId);
+                if (targetElement) {
+                    targetElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            });
+        });
+    </script>
+</body>
+</html>
