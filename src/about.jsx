@@ -109,10 +109,18 @@ function About() {
                     className="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
                   />
                 </div>
-                {/* Enhanced decorative elements */}
+                {/* Enhanced decorative elements with emojis */}
                 <div className="absolute -inset-6 bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 rounded-3xl -z-10 opacity-20 blur-lg"></div>
-                <div className="absolute -top-8 -right-8 w-24 h-24 bg-yellow-400 rounded-full opacity-30"></div>
-                <div className="absolute -bottom-8 -left-8 w-20 h-20 bg-blue-400 rounded-full opacity-30"></div>
+                <div className="absolute -top-8 -right-8 w-24 h-24 bg-yellow-400 rounded-full opacity-30 flex items-center justify-center">
+                  <span className="text-2xl md:text-3xl animate-bounce" style={{ animationDelay: '0.5s' }}>
+                    🤪
+                  </span>
+                </div>
+                <div className="absolute -bottom-8 -left-8 w-20 h-20 bg-blue-400 rounded-full opacity-30 flex items-center justify-center">
+                  <span className="text-xl md:text-2xl animate-pulse">
+                    🥰
+                  </span>
+                </div>
               </div>
             </div>
 

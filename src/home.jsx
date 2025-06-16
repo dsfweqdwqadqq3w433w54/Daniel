@@ -207,9 +207,9 @@ function Home() {
                       />
                     </div>
 
-                    {/* Decorative elements - Positioned close to the image but outside overflow */}
+                    {/* Decorative elements with emojis - Positioned close to the image but outside overflow */}
                     <div
-                      className="absolute bg-yellow-400 rounded-full opacity-40"
+                      className="absolute bg-yellow-400 rounded-full opacity-40 flex items-center justify-center"
                       style={{
                         top: '0.5rem',
                         right: '0.5rem',
@@ -217,9 +217,13 @@ function Home() {
                         height: 'min(15vw, 80px)',
                         zIndex: 25
                       }}
-                    ></div>
+                    >
+                      <span className="text-2xl md:text-3xl animate-bounce" style={{ animationDelay: '0.5s' }}>
+                        🤪
+                      </span>
+                    </div>
                     <div
-                      className="absolute bg-blue-500 rounded-full opacity-40"
+                      className="absolute bg-blue-500 rounded-full opacity-40 flex items-center justify-center"
                       style={{
                         bottom: '0.5rem',
                         left: '0.5rem',
@@ -227,7 +231,11 @@ function Home() {
                         height: 'min(12vw, 64px)',
                         zIndex: 25
                       }}
-                    ></div>
+                    >
+                      <span className="text-xl md:text-2xl animate-pulse">
+                        🥰
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>

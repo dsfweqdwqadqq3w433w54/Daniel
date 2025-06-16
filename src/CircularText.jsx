@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { motion, useAnimation, useMotionValue } from "framer-motion";
 
 const getRotationTransition = (duration, from, loop = true) => ({
@@ -28,6 +28,17 @@ const CircularText = ({
   const letters = Array.from(text);
   const controls = useAnimation();
   const rotation = useMotionValue(0);
+  const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1024);
+
+  // Handle window resize
+  useEffect(() => {
+    const handleResize = () => {
+      setWindowWidth(window.innerWidth);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   useEffect(() => {
     const start = rotation.get();
@@ -94,8 +105,8 @@ const CircularText = ({
     >
       {letters.map((letter, i) => {
         const rotationDeg = (360 / letters.length) * i;
-        // Responsive radius based on screen size
-        const radius = window.innerWidth < 640 ? 180 : window.innerWidth < 768 ? 200 : 220;
+        // Responsive radius based on screen size using state
+        const radius = windowWidth < 640 ? 180 : windowWidth < 768 ? 200 : 220;
         const x = Math.cos((rotationDeg * Math.PI) / 180) * radius;
         const y = Math.sin((rotationDeg * Math.PI) / 180) * radius;
         const transform = `translate(-50%, -50%) translate(${x}px, ${y}px) rotate(${rotationDeg + 90}deg)`;
