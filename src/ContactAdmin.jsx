@@ -380,7 +380,8 @@ function ContactAdmin() {
       {/* Modern Header */}
       <div className="bg-white/10 backdrop-blur-lg border-b border-white/20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
+          {/* Desktop Layout - Horizontal */}
+          <div className="hidden md:flex justify-between items-center py-6">
             <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-3">
                 <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
@@ -418,6 +419,52 @@ function ContactAdmin() {
               <button
                 onClick={goBackToPortfolio}
                 className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-4 py-2 rounded-lg transition-all duration-300 transform hover:scale-105"
+              >
+                ← Back to Portfolio
+              </button>
+            </div>
+          </div>
+
+          {/* Mobile Layout - Vertical Stacked */}
+          <div className="md:hidden py-4 space-y-4">
+            {/* Header Info Section */}
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+                <span className="text-white font-bold text-lg">
+                  {currentUser?.email?.charAt(0).toUpperCase() || 'A'}
+                </span>
+              </div>
+              <div>
+                <h1 className="text-xl font-bold">Admin Dashboard</h1>
+                <p className="text-gray-400 text-xs">
+                  Welcome, {currentUser?.email || 'Administrator'}
+                </p>
+              </div>
+            </div>
+
+            {/* Action Buttons Section - Positioned Lower */}
+            <div className="grid grid-cols-2 gap-3 pt-2">
+              <button
+                onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
+                className="bg-white/10 hover:bg-white/20 text-white px-3 py-2 rounded-lg transition-all duration-300 border border-white/30 text-sm"
+              >
+                {viewMode === 'grid' ? '📋 List' : '🔲 Grid'}
+              </button>
+              <button
+                onClick={loadData}
+                className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white px-3 py-2 rounded-lg transition-all duration-300 transform hover:scale-105 text-sm"
+              >
+                🔄 Refresh
+              </button>
+              <button
+                onClick={handleLogout}
+                className="bg-gradient-to-r from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700 text-white px-3 py-2 rounded-lg transition-all duration-300 transform hover:scale-105 text-sm"
+              >
+                🚪 Logout
+              </button>
+              <button
+                onClick={goBackToPortfolio}
+                className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-3 py-2 rounded-lg transition-all duration-300 transform hover:scale-105 text-sm"
               >
                 ← Back to Portfolio
               </button>
