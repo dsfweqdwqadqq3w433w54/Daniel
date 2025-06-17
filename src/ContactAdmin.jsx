@@ -12,6 +12,7 @@ import {
   getCurrentSession,
   supabase
 } from './supabaseClient';
+// import { sendEmailWithFallback, validateEmailConfig } from './emailService';
 
 function ContactAdmin() {
   const [submissions, setSubmissions] = useState([]);
@@ -22,6 +23,19 @@ function ContactAdmin() {
   const [selectedSubmission, setSelectedSubmission] = useState(null);
   const [actionLoading, setActionLoading] = useState(null);
   const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'list'
+  const [showReplyModal, setShowReplyModal] = useState(false);
+  const [replyForm, setReplyForm] = useState({
+    to: '',
+    subject: '',
+    message: ''
+  });
+  const [sendingReply, setSendingReply] = useState(false);
+  const [replySuccess, setReplySuccess] = useState(false);
+  const [replyError, setReplyError] = useState('');
+
+  // Navigation menu state
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [activeSection, setActiveSection] = useState('messages');
 
   // Supabase authentication states
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -116,7 +130,71 @@ function ContactAdmin() {
     window.location.href = '/';
   };
 
-  // Load data
+  // Reply functionality
+  const handleReplyClick = (submission) => {
+    setReplyForm({
+      to: submission.email,
+      subject: `Re: ${submission.subject}`,
+      message: `\n\n--- Original Message ---\nFrom: ${submission.name} <${submission.email}>\nDate: ${formatDate(submission.submitted_at)}\nSubject: ${submission.subject}\n\n${submission.message}`
+    });
+    setShowReplyModal(true);
+    setReplySuccess(false);
+  };
+
+  const handleSendReply = async (e) => {
+    e.preventDefault();
+    setSendingReply(true);
+
+    try {
+      // Temporary: Comment out email functionality for testing
+      console.log('Reply functionality temporarily disabled for testing');
+
+      // Mark as replied
+      await markSubmissionAsRead(selectedSubmission.id);
+
+      setReplySuccess('demo');
+
+      setTimeout(() => {
+        setShowReplyModal(false);
+        setSelectedSubmission(null);
+        loadData(); // Refresh the data
+      }, 2000);
+
+    } catch (error) {
+      console.error('Error sending reply:', error);
+      setReplyError(error.message || 'Failed to send reply. Please try again.');
+    } finally {
+      setSendingReply(false);
+    }
+  };
+
+  const closeReplyModal = () => {
+    setShowReplyModal(false);
+    setReplyForm({ to: '', subject: '', message: '' });
+    setReplySuccess(false);
+    setReplyError('');
+  };
+
+  // Navigation menu functions
+  const toggleMenu = () => {
+    setIsMenuOpen(!isMenuOpen);
+  };
+
+  const closeMenu = () => {
+    setIsMenuOpen(false);
+  };
+
+  const handleSectionChange = (section) => {
+    setActiveSection(section);
+    // Keep menu open when switching sections
+  };
+
+  const handleMenuAction = (action) => {
+    action(); // Execute the action function
+    setIsMenuOpen(false); // Close menu after action
+  };
+
+  // Load data function (moved here to be available for navigationActions)
   const loadData = async () => {
     setLoading(true);
     setError(null);
@@ -148,6 +226,75 @@ function ContactAdmin() {
       setLoading(false);
     }
   };
+
+  // Navigation menu items
+  const navigationItems = [
+    {
+      id: 'dashboard',
+      label: 'Dashboard',
+      icon: '📊',
+      description: 'Overview & Statistics',
+      type: 'section'
+    },
+    {
+      id: 'messages',
+      label: 'Messages',
+      icon: '📧',
+      description: 'Contact Form Submissions',
+      type: 'section'
+    },
+    {
+      id: 'settings',
+      label: 'Settings',
+      icon: '⚙️',
+      description: 'Admin Configuration',
+      type: 'section'
+    },
+    {
+      id: 'analytics',
+      label: 'Analytics',
+      icon: '📈',
+      description: 'Usage Statistics',
+      type: 'section'
+    }
+  ];
+
+  // Navigation action items
+  const navigationActions = [
+    {
+      id: 'view-toggle',
+      label: viewMode === 'grid' ? 'List View' : 'Grid View',
+      icon: viewMode === 'grid' ? '📋' : '🔲',
+      description: `Switch to ${viewMode === 'grid' ? 'list' : 'grid'} view`,
+      type: 'action',
+      action: () => setViewMode(viewMode === 'grid' ? 'list' : 'grid')
+    },
+    {
+      id: 'refresh',
+      label: 'Refresh',
+      icon: '🔄',
+      description: 'Reload data',
+      type: 'action',
+      action: loadData
+    },
+    {
+      id: 'portfolio',
+      label: 'Portfolio',
+      icon: '←',
+      description: 'Back to portfolio',
+      type: 'action',
+      action: goBackToPortfolio
+    },
+    {
+      id: 'logout',
+      label: 'Logout',
+      icon: '🚪',
+      description: 'Sign out of admin',
+      type: 'action',
+      action: handleLogout,
+      danger: true
+    }
+  ];
 
   // Check authentication on component mount
   useEffect(() => {
@@ -229,14 +376,14 @@ function ContactAdmin() {
   // Show login screen if not authenticated
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white flex items-center justify-center">
+      <div className="min-h-screen bg-white text-gray-900 flex items-center justify-center">
         <div className="text-center">
           <div className="relative">
             <div className="animate-spin rounded-full h-16 w-16 border-4 border-purple-500/30 border-t-purple-500 mx-auto mb-6"></div>
             <div className="absolute inset-0 rounded-full h-16 w-16 border-4 border-blue-500/20 border-r-blue-500 mx-auto animate-spin" style={{ animationDirection: 'reverse', animationDuration: '1.5s' }}></div>
           </div>
           <h3 className="text-xl font-semibold mb-2">Checking Authentication</h3>
-          <p className="text-gray-400">Please wait...</p>
+          <p className="text-gray-600">Please wait...</p>
         </div>
       </div>
     );
@@ -244,45 +391,45 @@ function ContactAdmin() {
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white flex items-center justify-center">
+      <div className="min-h-screen bg-white text-gray-900 flex items-center justify-center">
         <div className="w-full max-w-md">
-          <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 border border-white/20">
+          <div className="bg-gray-50 border border-gray-200 rounded-2xl p-8 shadow-lg">
             <div className="text-center mb-8">
               <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-4">
                 <span className="text-white font-bold text-2xl">🔐</span>
               </div>
               <h2 className="text-2xl font-bold mb-2">Admin Login</h2>
-              <p className="text-gray-400">Enter your credentials to access the dashboard</p>
+              <p className="text-gray-600">Enter your credentials to access the dashboard</p>
             </div>
 
             <form onSubmit={handleLogin} className="space-y-6">
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Email</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
                 <input
                   type="email"
                   value={loginForm.email}
                   onChange={(e) => setLoginForm({ ...loginForm, email: e.target.value })}
-                  className="w-full bg-white/10 border border-white/30 rounded-xl px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full bg-white border border-gray-300 rounded-xl px-4 py-3 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   placeholder="Enter your email"
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Password</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Password</label>
                 <div className="relative">
                   <input
                     type={showPassword ? "text" : "password"}
                     value={loginForm.password}
                     onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
-                    className="w-full bg-white/10 border border-white/30 rounded-xl px-4 py-3 pr-12 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full bg-white border border-gray-300 rounded-xl px-4 py-3 pr-12 text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="Enter your password"
                     required
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white transition-colors focus:outline-none"
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 transition-colors focus:outline-none"
                   >
                     {showPassword ? (
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -299,7 +446,7 @@ function ContactAdmin() {
               </div>
 
               {authError && (
-                <div className="bg-red-500/20 border border-red-500/50 rounded-xl p-3 text-red-300 text-sm">
+                <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-red-700 text-sm">
                   {authError}
                 </div>
               )}
@@ -312,17 +459,17 @@ function ContactAdmin() {
               </button>
             </form>
 
-            <div className="mt-6 pt-6 border-t border-white/20">
+            <div className="mt-6 pt-6 border-t border-gray-200">
               <button
                 onClick={goBackToPortfolio}
-                className="w-full bg-white/10 hover:bg-white/20 text-white py-3 px-4 rounded-xl transition-all duration-300 border border-white/30"
+                className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 py-3 px-4 rounded-xl transition-all duration-300 border border-gray-300"
               >
                 ← Back to Portfolio
               </button>
             </div>
 
             <div className="mt-6 text-center">
-              <p className="text-gray-400 text-sm mb-2">Secure Access</p>
+              <p className="text-gray-600 text-sm mb-2">Secure Access</p>
               <div className="text-xs text-gray-500 space-y-1">
                 <div>Contact your administrator for access credentials</div>
                 <div>All login attempts are monitored and logged</div>
@@ -336,14 +483,14 @@ function ContactAdmin() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white flex items-center justify-center">
+      <div className="min-h-screen bg-white text-gray-900 flex items-center justify-center">
         <div className="text-center">
           <div className="relative">
             <div className="animate-spin rounded-full h-16 w-16 border-4 border-purple-500/30 border-t-purple-500 mx-auto mb-6"></div>
             <div className="absolute inset-0 rounded-full h-16 w-16 border-4 border-blue-500/20 border-r-blue-500 mx-auto animate-spin" style={{ animationDirection: 'reverse', animationDuration: '1.5s' }}></div>
           </div>
           <h3 className="text-xl font-semibold mb-2">Loading Admin Dashboard</h3>
-          <p className="text-gray-400">Connecting to database...</p>
+          <p className="text-gray-600">Connecting to database...</p>
         </div>
       </div>
     );
@@ -351,11 +498,11 @@ function ContactAdmin() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white flex items-center justify-center">
-        <div className="text-center max-w-md bg-white/10 backdrop-blur-lg rounded-2xl p-8 border border-white/20">
-          <div className="text-red-400 text-6xl mb-6">⚠️</div>
+      <div className="min-h-screen bg-white text-gray-900 flex items-center justify-center">
+        <div className="text-center max-w-md bg-gray-50 border border-gray-200 rounded-2xl p-8 shadow-lg">
+          <div className="text-red-500 text-6xl mb-6">⚠️</div>
           <h2 className="text-2xl font-bold mb-4">Connection Error</h2>
-          <p className="text-gray-300 mb-6">{error}</p>
+          <p className="text-gray-700 mb-6">{error}</p>
           <div className="space-y-3">
             <button
               onClick={loadData}
@@ -365,7 +512,7 @@ function ContactAdmin() {
             </button>
             <button
               onClick={goBackToPortfolio}
-              className="w-full bg-white/10 hover:bg-white/20 text-white px-6 py-3 rounded-lg transition-all duration-300 border border-white/30"
+              className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 px-6 py-3 rounded-lg transition-all duration-300 border border-gray-300"
             >
               ← Back to Portfolio
             </button>
@@ -376,13 +523,28 @@ function ContactAdmin() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white">
+    <div className="min-h-screen bg-white text-gray-900">
       {/* Modern Header */}
-      <div className="bg-white/10 backdrop-blur-lg border-b border-white/20">
+      <div className={`bg-gray-50 border-b border-gray-200 shadow-sm transition-all duration-300 ${
+        isMenuOpen ? 'md:ml-64' : ''
+      }`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Desktop Layout - Horizontal */}
           <div className="hidden md:flex justify-between items-center py-6">
             <div className="flex items-center space-x-4">
+              {/* Hamburger Menu Button - Hidden when menu is open */}
+              {!isMenuOpen && (
+                <button
+                  onClick={toggleMenu}
+                  className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-800 transition-all duration-300 border border-gray-300"
+                  title="Open navigation menu"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                  </svg>
+                </button>
+              )}
+
               <div className="flex items-center space-x-3">
                 <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
                   <span className="text-white font-bold text-lg">
@@ -390,140 +552,191 @@ function ContactAdmin() {
                   </span>
                 </div>
                 <div>
-                  <h1 className="text-2xl font-bold">Admin Dashboard</h1>
-                  <p className="text-gray-400 text-sm">
+                  <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
+                  <p className="text-gray-600 text-sm">
                     Welcome, {currentUser?.email || 'Administrator'} • Contact Form Management
                   </p>
                 </div>
               </div>
             </div>
-            <div className="flex items-center space-x-3">
-              <button
-                onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
-                className="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-lg transition-all duration-300 border border-white/30"
-              >
-                {viewMode === 'grid' ? '📋 List View' : '🔲 Grid View'}
-              </button>
-              <button
-                onClick={loadData}
-                className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white px-4 py-2 rounded-lg transition-all duration-300 transform hover:scale-105"
-              >
-                🔄 Refresh
-              </button>
-              <button
-                onClick={handleLogout}
-                className="bg-gradient-to-r from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700 text-white px-4 py-2 rounded-lg transition-all duration-300 transform hover:scale-105"
-              >
-                🚪 Logout
-              </button>
-              <button
-                onClick={goBackToPortfolio}
-                className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-4 py-2 rounded-lg transition-all duration-300 transform hover:scale-105"
-              >
-                ← Back to Portfolio
-              </button>
-            </div>
+
           </div>
 
           {/* Mobile Layout - Vertical Stacked */}
           <div className="md:hidden py-4 space-y-4">
             {/* Header Info Section */}
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-lg">
-                  {currentUser?.email?.charAt(0).toUpperCase() || 'A'}
-                </span>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+                  <span className="text-white font-bold text-lg">
+                    {currentUser?.email?.charAt(0).toUpperCase() || 'A'}
+                  </span>
+                </div>
+                <div>
+                  <h1 className="text-xl font-bold text-gray-900">Admin Dashboard</h1>
+                  <p className="text-gray-600 text-xs">
+                    Welcome, {currentUser?.email || 'Administrator'}
+                  </p>
+                </div>
               </div>
-              <div>
-                <h1 className="text-xl font-bold">Admin Dashboard</h1>
-                <p className="text-gray-400 text-xs">
-                  Welcome, {currentUser?.email || 'Administrator'}
-                </p>
-              </div>
+
+              {/* Mobile Hamburger Menu Button - Hidden when menu is open */}
+              {!isMenuOpen && (
+                <button
+                  onClick={toggleMenu}
+                  className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-600 hover:text-gray-800 transition-all duration-300 border border-gray-300"
+                  title="Open navigation menu"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                  </svg>
+                </button>
+              )}
             </div>
 
-            {/* Action Buttons Section - Positioned Lower */}
-            <div className="grid grid-cols-2 gap-3 pt-2">
-              <button
-                onClick={() => setViewMode(viewMode === 'grid' ? 'list' : 'grid')}
-                className="bg-white/10 hover:bg-white/20 text-white px-3 py-2 rounded-lg transition-all duration-300 border border-white/30 text-sm"
-              >
-                {viewMode === 'grid' ? '📋 List' : '🔲 Grid'}
-              </button>
-              <button
-                onClick={loadData}
-                className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white px-3 py-2 rounded-lg transition-all duration-300 transform hover:scale-105 text-sm"
-              >
-                🔄 Refresh
-              </button>
-              <button
-                onClick={handleLogout}
-                className="bg-gradient-to-r from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700 text-white px-3 py-2 rounded-lg transition-all duration-300 transform hover:scale-105 text-sm"
-              >
-                🚪 Logout
-              </button>
-              <button
-                onClick={goBackToPortfolio}
-                className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-3 py-2 rounded-lg transition-all duration-300 transform hover:scale-105 text-sm"
-              >
-                ← Back to Portfolio
-              </button>
-            </div>
+
           </div>
         </div>
       </div>
 
-      {/* Modern Stats Cards */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* Left Navigation Menu */}
+      <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-xl transform transition-transform duration-300 ease-in-out ${
+        isMenuOpen ? 'translate-x-0' : '-translate-x-full'
+      }`}>
+        {/* Menu Header */}
+        <div className="flex items-center justify-between p-4 border-b border-gray-200">
+          <h2 className="text-lg font-semibold text-gray-900">Navigation</h2>
+          <button
+            onClick={closeMenu}
+            className="p-1 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-gray-700 transition-colors"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Menu Items */}
+        <nav className="p-4 space-y-4">
+          {/* Navigation Sections */}
+          <div className="space-y-2">
+            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider px-4">Sections</h3>
+            {navigationItems.map((item) => (
+              <button
+                key={item.id}
+                onClick={() => handleSectionChange(item.id)}
+                className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left transition-all duration-200 ${
+                  activeSection === item.id
+                    ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                    : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+                }`}
+              >
+                <span className="text-lg">{item.icon}</span>
+                <div>
+                  <div className="font-medium">{item.label}</div>
+                  <div className="text-xs text-gray-500">{item.description}</div>
+                </div>
+              </button>
+            ))}
+          </div>
+
+          {/* Divider */}
+          <div className="border-t border-gray-200"></div>
+
+          {/* Action Items */}
+          <div className="space-y-2">
+            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider px-4">Actions</h3>
+            {navigationActions.map((action) => (
+              <button
+                key={action.id}
+                onClick={() => handleMenuAction(action.action)}
+                className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left transition-all duration-200 ${
+                  action.danger
+                    ? 'text-red-600 hover:bg-red-50 hover:text-red-700'
+                    : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+                }`}
+              >
+                <span className="text-lg">{action.icon}</span>
+                <div>
+                  <div className="font-medium">{action.label}</div>
+                  <div className="text-xs text-gray-500">{action.description}</div>
+                </div>
+              </button>
+            ))}
+          </div>
+        </nav>
+
+        {/* Menu Footer */}
+        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200 bg-gray-50">
+          <div className="text-xs text-gray-500 text-center">
+            Admin Panel v1.0
+          </div>
+        </div>
+      </div>
+
+      {/* Backdrop Overlay - Only on mobile */}
+      {isMenuOpen && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 z-40 transition-opacity duration-300 md:hidden"
+          onClick={closeMenu}
+        ></div>
+      )}
+
+      {/* Main Content Area */}
+      <div
+        className={`transition-all duration-300 ${isMenuOpen ? 'md:ml-64' : ''}`}
+      >
+        {/* Modern Stats Cards */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20 hover:bg-white/20 transition-all duration-300 transform hover:scale-105">
+          <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition-all duration-300 transform hover:scale-105">
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-3xl font-bold text-blue-400">{stats.total}</div>
-                <div className="text-gray-300 text-sm">Total Messages</div>
+                <div className="text-3xl font-bold text-blue-600">{stats.total}</div>
+                <div className="text-gray-600 text-sm">Total Messages</div>
               </div>
-              <div className="w-12 h-12 bg-blue-500/20 rounded-xl flex items-center justify-center">
-                <span className="text-blue-400 text-xl">📧</span>
+              <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
+                <span className="text-blue-600 text-xl">📧</span>
               </div>
             </div>
           </div>
-          <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20 hover:bg-white/20 transition-all duration-300 transform hover:scale-105">
+          <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition-all duration-300 transform hover:scale-105">
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-3xl font-bold text-green-400">{stats.new}</div>
-                <div className="text-gray-300 text-sm">New Messages</div>
+                <div className="text-3xl font-bold text-green-600">{stats.new}</div>
+                <div className="text-gray-600 text-sm">New Messages</div>
               </div>
-              <div className="w-12 h-12 bg-green-500/20 rounded-xl flex items-center justify-center">
-                <span className="text-green-400 text-xl">✨</span>
+              <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
+                <span className="text-green-600 text-xl">✨</span>
               </div>
             </div>
           </div>
-          <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20 hover:bg-white/20 transition-all duration-300 transform hover:scale-105">
+          <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition-all duration-300 transform hover:scale-105">
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-3xl font-bold text-purple-400">{stats.read}</div>
-                <div className="text-gray-300 text-sm">Read Messages</div>
+                <div className="text-3xl font-bold text-purple-600">{stats.read}</div>
+                <div className="text-gray-600 text-sm">Read Messages</div>
               </div>
-              <div className="w-12 h-12 bg-purple-500/20 rounded-xl flex items-center justify-center">
-                <span className="text-purple-400 text-xl">👁️</span>
+              <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
+                <span className="text-purple-600 text-xl">👁️</span>
               </div>
             </div>
           </div>
-          <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20 hover:bg-white/20 transition-all duration-300 transform hover:scale-105">
+          <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition-all duration-300 transform hover:scale-105">
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-3xl font-bold text-orange-400">{stats.today}</div>
-                <div className="text-gray-300 text-sm">Today</div>
+                <div className="text-3xl font-bold text-orange-600">{stats.today}</div>
+                <div className="text-gray-600 text-sm">Today</div>
               </div>
-              <div className="w-12 h-12 bg-orange-500/20 rounded-xl flex items-center justify-center">
-                <span className="text-orange-400 text-xl">📅</span>
+              <div className="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center">
+                <span className="text-orange-600 text-xl">📅</span>
               </div>
             </div>
           </div>
         </div>
 
         {/* Modern Filter Tabs */}
-        <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20 mb-8">
+        <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm mb-8">
           <div className="flex flex-wrap gap-3">
             {[
               { key: 'all', label: 'All Messages', count: stats.total, icon: '📋', color: 'blue' },
@@ -535,16 +748,16 @@ function ContactAdmin() {
                 onClick={() => setFilter(tab.key)}
                 className={`flex items-center space-x-2 px-6 py-3 rounded-xl font-medium text-sm transition-all duration-300 transform hover:scale-105 ${
                   filter === tab.key
-                    ? `bg-${tab.color}-500/30 text-${tab.color}-300 border border-${tab.color}-500/50`
-                    : 'bg-white/10 text-gray-300 hover:bg-white/20 border border-white/30'
+                    ? `bg-${tab.color}-100 text-${tab.color}-700 border border-${tab.color}-300`
+                    : 'bg-gray-50 text-gray-700 hover:bg-gray-100 border border-gray-300'
                 }`}
               >
                 <span>{tab.icon}</span>
                 <span>{tab.label}</span>
                 <span className={`px-2 py-1 rounded-full text-xs ${
                   filter === tab.key
-                    ? `bg-${tab.color}-500/50`
-                    : 'bg-white/20'
+                    ? `bg-${tab.color}-200 text-${tab.color}-800`
+                    : 'bg-gray-200 text-gray-600'
                 }`}>
                   {tab.count}
                 </span>
@@ -554,12 +767,12 @@ function ContactAdmin() {
         </div>
 
         {/* Messages Display */}
-        <div className="bg-white/10 backdrop-blur-lg rounded-2xl border border-white/20 overflow-hidden">
+        <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
           {filteredSubmissions.length === 0 ? (
             <div className="text-center py-16">
               <div className="text-8xl mb-6">📭</div>
-              <h3 className="text-2xl font-bold text-white mb-4">No messages found</h3>
-              <p className="text-gray-400 text-lg">
+              <h3 className="text-2xl font-bold text-gray-900 mb-4">No messages found</h3>
+              <p className="text-gray-600 text-lg">
                 {filter === 'all' ? 'No contact form submissions yet.' : `No ${filter} messages.`}
               </p>
             </div>
@@ -570,7 +783,7 @@ function ContactAdmin() {
                 {filteredSubmissions.map((submission) => (
                   <div
                     key={submission.id}
-                    className="bg-white/10 backdrop-blur-sm rounded-xl p-6 border border-white/20 hover:bg-white/20 transition-all duration-300 transform hover:scale-105 cursor-pointer"
+                    className="bg-gray-50 border border-gray-200 rounded-xl p-6 hover:bg-gray-100 hover:shadow-md transition-all duration-300 transform hover:scale-105 cursor-pointer"
                     onClick={() => setSelectedSubmission(submission)}
                   >
                     <div className="flex items-start justify-between mb-4">
@@ -581,22 +794,22 @@ function ContactAdmin() {
                           </span>
                         </div>
                         <div>
-                          <h4 className="font-semibold text-white">{submission.name}</h4>
-                          <p className="text-gray-400 text-sm">{submission.email}</p>
+                          <h4 className="font-semibold text-gray-900">{submission.name}</h4>
+                          <p className="text-gray-600 text-sm">{submission.email}</p>
                         </div>
                       </div>
                       <span className={`px-3 py-1 text-xs font-semibold rounded-full ${
                         submission.status === 'new'
-                          ? 'bg-green-500/30 text-green-300 border border-green-500/50'
-                          : 'bg-purple-500/30 text-purple-300 border border-purple-500/50'
+                          ? 'bg-green-100 text-green-700 border border-green-300'
+                          : 'bg-purple-100 text-purple-700 border border-purple-300'
                       }`}>
                         {submission.status}
                       </span>
                     </div>
 
                     <div className="mb-4">
-                      <h5 className="font-medium text-white mb-2">{submission.subject}</h5>
-                      <p className="text-gray-400 text-sm line-clamp-3">
+                      <h5 className="font-medium text-gray-900 mb-2">{submission.subject}</h5>
+                      <p className="text-gray-600 text-sm line-clamp-3">
                         {submission.message.substring(0, 120)}...
                       </p>
                     </div>
@@ -613,7 +826,7 @@ function ContactAdmin() {
                               handleMarkAsRead(submission.id);
                             }}
                             disabled={actionLoading === submission.id}
-                            className="text-green-400 hover:text-green-300 text-sm disabled:opacity-50"
+                            className="text-green-600 hover:text-green-700 text-sm disabled:opacity-50"
                           >
                             {actionLoading === submission.id ? '...' : '✓'}
                           </button>
@@ -624,7 +837,7 @@ function ContactAdmin() {
                               handleMarkAsUnread(submission.id);
                             }}
                             disabled={actionLoading === submission.id}
-                            className="text-yellow-400 hover:text-yellow-300 text-sm disabled:opacity-50"
+                            className="text-yellow-600 hover:text-yellow-700 text-sm disabled:opacity-50"
                           >
                             {actionLoading === submission.id ? '...' : '↺'}
                           </button>
@@ -635,7 +848,7 @@ function ContactAdmin() {
                             handleDelete(submission.id);
                           }}
                           disabled={actionLoading === submission.id}
-                          className="text-red-400 hover:text-red-300 text-sm disabled:opacity-50"
+                          className="text-red-600 hover:text-red-700 text-sm disabled:opacity-50"
                         >
                           {actionLoading === submission.id ? '...' : '🗑️'}
                         </button>
@@ -651,7 +864,7 @@ function ContactAdmin() {
               {filteredSubmissions.map((submission) => (
                 <div
                   key={submission.id}
-                  className="bg-white/10 backdrop-blur-sm rounded-xl p-6 border border-white/20 hover:bg-white/20 transition-all duration-300"
+                  className="bg-gray-50 border border-gray-200 rounded-xl p-6 hover:bg-gray-100 hover:shadow-md transition-all duration-300"
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex items-start space-x-4 flex-1">
@@ -662,18 +875,18 @@ function ContactAdmin() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center space-x-3 mb-2">
-                          <h4 className="font-semibold text-white">{submission.name}</h4>
+                          <h4 className="font-semibold text-gray-900">{submission.name}</h4>
                           <span className={`px-3 py-1 text-xs font-semibold rounded-full ${
                             submission.status === 'new'
-                              ? 'bg-green-500/30 text-green-300 border border-green-500/50'
-                              : 'bg-purple-500/30 text-purple-300 border border-purple-500/50'
+                              ? 'bg-green-100 text-green-700 border border-green-300'
+                              : 'bg-purple-100 text-purple-700 border border-purple-300'
                           }`}>
                             {submission.status}
                           </span>
                         </div>
-                        <p className="text-gray-400 text-sm mb-2">{submission.email}</p>
-                        <h5 className="font-medium text-white mb-2">{submission.subject}</h5>
-                        <p className="text-gray-400 text-sm mb-3">
+                        <p className="text-gray-600 text-sm mb-2">{submission.email}</p>
+                        <h5 className="font-medium text-gray-900 mb-2">{submission.subject}</h5>
+                        <p className="text-gray-600 text-sm mb-3">
                           {submission.message.substring(0, 200)}...
                         </p>
                         <p className="text-gray-500 text-xs">
@@ -684,15 +897,21 @@ function ContactAdmin() {
                     <div className="flex flex-col space-y-2 ml-4">
                       <button
                         onClick={() => setSelectedSubmission(submission)}
-                        className="bg-blue-500/30 hover:bg-blue-500/50 text-blue-300 px-4 py-2 rounded-lg text-sm transition-all duration-300 border border-blue-500/50"
+                        className="bg-blue-100 hover:bg-blue-200 text-blue-700 px-4 py-2 rounded-lg text-sm transition-all duration-300 border border-blue-300"
                       >
                         👁️ View
+                      </button>
+                      <button
+                        onClick={() => handleReplyClick(submission)}
+                        className="bg-green-100 hover:bg-green-200 text-green-700 px-4 py-2 rounded-lg text-sm transition-all duration-300 border border-green-300"
+                      >
+                        📧 Reply
                       </button>
                       {submission.status === 'new' ? (
                         <button
                           onClick={() => handleMarkAsRead(submission.id)}
                           disabled={actionLoading === submission.id}
-                          className="bg-green-500/30 hover:bg-green-500/50 text-green-300 px-4 py-2 rounded-lg text-sm transition-all duration-300 border border-green-500/50 disabled:opacity-50"
+                          className="bg-emerald-100 hover:bg-emerald-200 text-emerald-700 px-4 py-2 rounded-lg text-sm transition-all duration-300 border border-emerald-300 disabled:opacity-50"
                         >
                           {actionLoading === submission.id ? '...' : '✓ Mark Read'}
                         </button>
@@ -700,7 +919,7 @@ function ContactAdmin() {
                         <button
                           onClick={() => handleMarkAsUnread(submission.id)}
                           disabled={actionLoading === submission.id}
-                          className="bg-yellow-500/30 hover:bg-yellow-500/50 text-yellow-300 px-4 py-2 rounded-lg text-sm transition-all duration-300 border border-yellow-500/50 disabled:opacity-50"
+                          className="bg-yellow-100 hover:bg-yellow-200 text-yellow-700 px-4 py-2 rounded-lg text-sm transition-all duration-300 border border-yellow-300 disabled:opacity-50"
                         >
                           {actionLoading === submission.id ? '...' : '↺ Mark Unread'}
                         </button>
@@ -708,7 +927,7 @@ function ContactAdmin() {
                       <button
                         onClick={() => handleDelete(submission.id)}
                         disabled={actionLoading === submission.id}
-                        className="bg-red-500/30 hover:bg-red-500/50 text-red-300 px-4 py-2 rounded-lg text-sm transition-all duration-300 border border-red-500/50 disabled:opacity-50"
+                        className="bg-red-100 hover:bg-red-200 text-red-700 px-4 py-2 rounded-lg text-sm transition-all duration-300 border border-red-300 disabled:opacity-50"
                       >
                         {actionLoading === submission.id ? '...' : '🗑️ Delete'}
                       </button>
@@ -722,9 +941,9 @@ function ContactAdmin() {
       </div>
 
       {/* Modern Message Detail Modal */}
-      {selectedSubmission && (
+      {selectedSubmission && !showReplyModal && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-900/95 backdrop-blur-lg rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto border border-white/20">
+          <div className="bg-white rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto border border-gray-200 shadow-xl">
             <div className="p-8">
               <div className="flex justify-between items-start mb-8">
                 <div className="flex items-center space-x-4">
@@ -734,13 +953,13 @@ function ContactAdmin() {
                     </span>
                   </div>
                   <div>
-                    <h3 className="text-2xl font-bold text-white">Message Details</h3>
-                    <p className="text-gray-400">Submitted {formatDate(selectedSubmission.submitted_at)}</p>
+                    <h3 className="text-2xl font-bold text-gray-900">Message Details</h3>
+                    <p className="text-gray-600">Submitted {formatDate(selectedSubmission.submitted_at)}</p>
                   </div>
                 </div>
                 <button
                   onClick={() => setSelectedSubmission(null)}
-                  className="text-gray-400 hover:text-white text-3xl transition-colors"
+                  className="text-gray-500 hover:text-gray-700 text-3xl transition-colors"
                 >
                   ×
                 </button>
@@ -749,15 +968,15 @@ function ContactAdmin() {
               <div className="space-y-6">
                 <div className="grid md:grid-cols-2 gap-6">
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Name</label>
-                    <div className="text-white bg-white/10 backdrop-blur-sm p-4 rounded-xl border border-white/20">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Name</label>
+                    <div className="text-gray-900 bg-gray-50 p-4 rounded-xl border border-gray-200">
                       {selectedSubmission.name}
                     </div>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Email</label>
-                    <div className="text-white bg-white/10 backdrop-blur-sm p-4 rounded-xl border border-white/20">
-                      <a href={`mailto:${selectedSubmission.email}`} className="text-blue-400 hover:text-blue-300 transition-colors">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                    <div className="text-gray-900 bg-gray-50 p-4 rounded-xl border border-gray-200">
+                      <a href={`mailto:${selectedSubmission.email}`} className="text-blue-600 hover:text-blue-700 transition-colors">
                         {selectedSubmission.email}
                       </a>
                     </div>
@@ -765,56 +984,183 @@ function ContactAdmin() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Subject</label>
-                  <div className="text-white bg-white/10 backdrop-blur-sm p-4 rounded-xl border border-white/20">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Subject</label>
+                  <div className="text-gray-900 bg-gray-50 p-4 rounded-xl border border-gray-200">
                     {selectedSubmission.subject}
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Message</label>
-                  <div className="text-white bg-white/10 backdrop-blur-sm p-6 rounded-xl border border-white/20 whitespace-pre-wrap leading-relaxed">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Message</label>
+                  <div className="text-gray-900 bg-gray-50 p-6 rounded-xl border border-gray-200 whitespace-pre-wrap leading-relaxed">
                     {selectedSubmission.message}
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/10">
+                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-200">
                   <div className="flex items-center space-x-3">
                     <span className={`px-3 py-1 text-xs font-semibold rounded-full ${
                       selectedSubmission.status === 'new'
-                        ? 'bg-green-500/30 text-green-300 border border-green-500/50'
-                        : 'bg-purple-500/30 text-purple-300 border border-purple-500/50'
+                        ? 'bg-green-100 text-green-700 border border-green-300'
+                        : 'bg-purple-100 text-purple-700 border border-purple-300'
                     }`}>
                       {selectedSubmission.status}
                     </span>
-                    <span className="text-gray-400 text-sm">
+                    <span className="text-gray-600 text-sm">
                       Status: {selectedSubmission.status === 'new' ? 'Unread' : 'Read'}
                     </span>
                   </div>
-                  <span className="text-gray-400 text-sm">
+                  <span className="text-gray-600 text-sm">
                     ID: {selectedSubmission.id}
                   </span>
                 </div>
               </div>
 
-              <div className="flex justify-end space-x-3 mt-8 pt-6 border-t border-white/20">
+              <div className="flex justify-end space-x-3 mt-8 pt-6 border-t border-gray-200">
                 <button
                   onClick={() => setSelectedSubmission(null)}
-                  className="px-6 py-3 text-gray-300 bg-white/10 rounded-xl hover:bg-white/20 transition-all duration-300 border border-white/30"
+                  className="px-6 py-3 text-gray-700 bg-gray-100 rounded-xl hover:bg-gray-200 transition-all duration-300 border border-gray-300"
                 >
                   Close
                 </button>
-                <a
-                  href={`mailto:${selectedSubmission.email}?subject=Re: ${selectedSubmission.subject}`}
+                <button
+                  onClick={() => handleReplyClick(selectedSubmission)}
                   className="px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white rounded-xl transition-all duration-300 transform hover:scale-105"
                 >
-                  📧 Reply via Email
-                </a>
+                  📧 Reply to Message
+                </button>
               </div>
             </div>
           </div>
         </div>
       )}
+
+      {/* Reply Modal */}
+      {showReplyModal && selectedSubmission && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto border border-gray-200 shadow-xl">
+            <div className="p-8">
+              <div className="flex justify-between items-start mb-8">
+                <div className="flex items-center space-x-4">
+                  <div className="w-12 h-12 bg-gradient-to-r from-green-500 to-emerald-600 rounded-full flex items-center justify-center">
+                    <span className="text-white font-bold text-lg">📧</span>
+                  </div>
+                  <div>
+                    <h3 className="text-2xl font-bold text-gray-900">Reply to Message</h3>
+                    <p className="text-gray-600">Replying to {selectedSubmission.name}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={closeReplyModal}
+                  className="text-gray-500 hover:text-gray-700 text-3xl transition-colors"
+                >
+                  ×
+                </button>
+              </div>
+
+              {replySuccess ? (
+                <div className="text-center py-12">
+                  <div className="text-6xl mb-6">✅</div>
+                  <h3 className="text-2xl font-bold text-green-600 mb-4">Reply Sent Successfully!</h3>
+                  <p className="text-gray-600 text-lg">
+                    {replySuccess === 'emailjs'
+                      ? 'Your reply has been sent directly to the recipient\'s inbox via EmailJS.'
+                      : replySuccess === 'web3forms'
+                      ? 'Your reply has been sent directly to the recipient\'s inbox via Web3Forms.'
+                      : replySuccess === 'demo'
+                      ? 'Demo email sent successfully! Check the browser console to see the email content. This is a simulation - no real email was sent.'
+                      : 'Your email client has been opened with the pre-filled reply message. Please send it from your email client.'
+                    }
+                  </p>
+                  {replySuccess === 'demo' && (
+                    <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-xl">
+                      <p className="text-yellow-700 text-sm">
+                        🧪 <strong>Demo Mode:</strong> To send real emails, follow the setup guide in WEB3FORMS_SETUP.md (2 minutes) or set VITE_DEMO_MODE=false in .env.local
+                      </p>
+                    </div>
+                  )}
+                  {replySuccess === 'client' && (
+                    <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-xl">
+                      <p className="text-blue-700 text-sm">
+                        💡 <strong>Tip:</strong> To send emails directly from the dashboard, set up Web3Forms following the guide in WEB3FORMS_SETUP.md
+                      </p>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <form onSubmit={handleSendReply} className="space-y-6">
+                  <div className="grid md:grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">To</label>
+                      <input
+                        type="email"
+                        value={replyForm.to}
+                        onChange={(e) => setReplyForm({ ...replyForm, to: e.target.value })}
+                        className="w-full bg-gray-50 border border-gray-300 rounded-xl px-4 py-3 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        required
+                        readOnly
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Subject</label>
+                      <input
+                        type="text"
+                        value={replyForm.subject}
+                        onChange={(e) => setReplyForm({ ...replyForm, subject: e.target.value })}
+                        className="w-full bg-white border border-gray-300 rounded-xl px-4 py-3 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Your Reply</label>
+                    <textarea
+                      value={replyForm.message}
+                      onChange={(e) => setReplyForm({ ...replyForm, message: e.target.value })}
+                      rows={12}
+                      className="w-full bg-white border border-gray-300 rounded-xl px-4 py-3 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                      placeholder="Type your reply here..."
+                      required
+                    />
+                  </div>
+
+                  {replyError && (
+                    <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-red-700 text-sm">
+                      {replyError}
+                    </div>
+                  )}
+
+                  <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200">
+                    <button
+                      type="button"
+                      onClick={closeReplyModal}
+                      className="px-6 py-3 text-gray-700 bg-gray-100 rounded-xl hover:bg-gray-200 transition-all duration-300 border border-gray-300"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={sendingReply}
+                      className="px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white rounded-xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {sendingReply ? (
+                        <span className="flex items-center space-x-2">
+                          <div className="animate-spin rounded-full h-4 w-4 border-2 border-white/30 border-t-white"></div>
+                          <span>Sending...</span>
+                        </span>
+                      ) : (
+                        '📧 Send Reply'
+                      )}
+                    </button>
+                  </div>
+                </form>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+      </div> {/* Close main content area */}
     </div>
   );
 }
