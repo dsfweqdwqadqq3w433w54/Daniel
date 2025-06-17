@@ -26,36 +26,54 @@ export const initEmailJS = () => {
 // Send email via Web3Forms (reliable alternative)
 export const sendViaWeb3Forms = async (replyData) => {
   try {
-    if (WEB3FORMS_ACCESS_KEY === 'your_web3forms_key') {
-      throw new Error('Web3Forms not configured');
+    console.log('Web3Forms Access Key:', WEB3FORMS_ACCESS_KEY ? 'Configured' : 'Missing');
+
+    if (!WEB3FORMS_ACCESS_KEY || WEB3FORMS_ACCESS_KEY === 'your_web3forms_key') {
+      throw new Error('Web3Forms access key not configured');
     }
 
+    // Prepare form data for Web3Forms
     const formData = new FormData();
     formData.append('access_key', WEB3FORMS_ACCESS_KEY);
     formData.append('subject', replyData.subject);
-    formData.append('email', replyData.fromEmail);
-    formData.append('name', replyData.fromName);
+    formData.append('email', replyData.to); // Recipient email
+    formData.append('name', replyData.toName || 'User');
     formData.append('message', replyData.message);
-    formData.append('to', replyData.to);
     formData.append('from_name', replyData.fromName);
     formData.append('reply_to', replyData.fromEmail);
 
+    // Add additional fields for better email delivery
+    formData.append('from_email', replyData.fromEmail);
+    formData.append('to_email', replyData.to);
+
+    console.log('Sending email to Web3Forms API...');
+    console.log('Recipient:', replyData.to);
+    console.log('Subject:', replyData.subject);
+
     const response = await fetch('https://api.web3forms.com/submit', {
       method: 'POST',
-      body: formData
+      body: formData,
+      headers: {
+        'Accept': 'application/json'
+      }
     });
 
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
     const result = await response.json();
+    console.log('Web3Forms response:', result);
 
     if (result.success) {
-      console.log('Email sent successfully via Web3Forms:', result);
+      console.log('✅ Email sent successfully via Web3Forms');
       return { success: true, response: result };
     } else {
       throw new Error(result.message || 'Web3Forms submission failed');
     }
 
   } catch (error) {
-    console.error('Failed to send email via Web3Forms:', error);
+    console.error('❌ Failed to send email via Web3Forms:', error);
     return { success: false, error: error.message || 'Failed to send email' };
   }
 };
@@ -137,43 +155,97 @@ Note: This is a demo. To send real emails, set up Web3Forms or EmailJS.
 
 // Send email with multiple fallback options
 export const sendEmailWithFallback = async (replyData) => {
-  console.log('Attempting to send email with fallback options...');
+  console.log('🚀 Starting email send process...');
+  console.log('Environment check:');
+  console.log('- Demo Mode:', DEMO_MODE);
+  console.log('- Web3Forms Key:', WEB3FORMS_ACCESS_KEY ? 'Present' : 'Missing');
+  console.log('- Email Data:', {
+    to: replyData.to,
+    from: replyData.fromEmail,
+    subject: replyData.subject
+  });
 
   // Demo mode for testing
   if (DEMO_MODE) {
+    console.log('📧 Running in demo mode');
     return await sendDemoEmail(replyData);
   }
 
   // Option 1: Try Web3Forms first (most reliable)
-  if (WEB3FORMS_ACCESS_KEY !== 'your_web3forms_key') {
-    console.log('Trying Web3Forms...');
+  if (WEB3FORMS_ACCESS_KEY && WEB3FORMS_ACCESS_KEY !== 'your_web3forms_key') {
+    console.log('🌐 Attempting Web3Forms...');
     const web3Result = await sendViaWeb3Forms(replyData);
     if (web3Result.success) {
+      console.log('✅ Web3Forms succeeded!');
       return { success: true, method: 'web3forms', response: web3Result.response };
     }
-    console.log('Web3Forms failed:', web3Result.error);
+    console.log('❌ Web3Forms failed:', web3Result.error);
+  } else {
+    console.log('⚠️ Web3Forms not configured');
   }
 
   // Option 2: Try EmailJS
   const emailConfig = validateEmailConfig();
   if (emailConfig.isConfigured) {
-    console.log('Trying EmailJS...');
+    console.log('📨 Attempting EmailJS...');
     const emailResult = await sendReplyEmail(replyData);
     if (emailResult.success) {
+      console.log('✅ EmailJS succeeded!');
       return { success: true, method: 'emailjs', response: emailResult.response };
     }
-    console.log('EmailJS failed:', emailResult.error);
+    console.log('❌ EmailJS failed:', emailResult.error);
+  } else {
+    console.log('⚠️ EmailJS not configured');
   }
 
   // Option 3: Fallback to email client
-  console.log('All email services failed, falling back to email client...');
+  console.log('📬 Falling back to email client...');
   const clientResult = openEmailClient(replyData);
 
   if (clientResult.success) {
+    console.log('✅ Email client opened');
     return { success: true, method: 'client', message: 'Email client opened with pre-filled content' };
   }
 
-  return { success: false, error: 'All email sending methods failed' };
+  console.log('❌ All email methods failed');
+  return { success: false, error: 'All email sending methods failed. Please check your email configuration.' };
+};
+
+// Test Web3Forms configuration
+export const testWeb3FormsConfig = async () => {
+  try {
+    console.log('🧪 Testing Web3Forms configuration...');
+
+    if (!WEB3FORMS_ACCESS_KEY || WEB3FORMS_ACCESS_KEY === 'your_web3forms_key') {
+      return { success: false, error: 'Web3Forms access key not configured' };
+    }
+
+    // Test with a simple ping
+    const formData = new FormData();
+    formData.append('access_key', WEB3FORMS_ACCESS_KEY);
+    formData.append('subject', 'Test Configuration');
+    formData.append('email', 'test@example.com');
+    formData.append('message', 'This is a configuration test');
+
+    const response = await fetch('https://api.web3forms.com/submit', {
+      method: 'POST',
+      body: formData,
+      headers: {
+        'Accept': 'application/json'
+      }
+    });
+
+    const result = await response.json();
+
+    return {
+      success: response.ok,
+      result,
+      message: response.ok ? 'Web3Forms is properly configured' : 'Web3Forms configuration error'
+    };
+
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
 };
 
 // Validate email configuration
@@ -184,8 +256,8 @@ export const validateEmailConfig = () => {
     publicKey: EMAILJS_PUBLIC_KEY
   };
 
-  const isConfigured = EMAILJS_SERVICE_ID !== 'your_service_id' && 
-                      EMAILJS_TEMPLATE_ID !== 'your_template_id' && 
+  const isConfigured = EMAILJS_SERVICE_ID !== 'your_service_id' &&
+                      EMAILJS_TEMPLATE_ID !== 'your_template_id' &&
                       EMAILJS_PUBLIC_KEY !== 'your_public_key';
 
   return {

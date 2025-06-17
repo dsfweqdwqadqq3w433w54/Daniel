@@ -12,7 +12,7 @@ import {
   getCurrentSession,
   supabase
 } from './supabaseClient';
-import { sendEmailWithFallback, validateEmailConfig } from './emailService';
+import { sendEmailWithFallback, validateEmailConfig, testWeb3FormsConfig } from './emailService';
 
 function ContactAdmin() {
   const [submissions, setSubmissions] = useState([]);
@@ -221,6 +221,24 @@ function ContactAdmin() {
     setIsMenuOpen(false); // Close menu after action
   };
 
+  // Test email configuration
+  const testEmailConfig = async () => {
+    console.log('🧪 Testing email configuration...');
+    try {
+      const testResult = await testWeb3FormsConfig();
+      console.log('Test result:', testResult);
+
+      if (testResult.success) {
+        alert('✅ Email configuration is working! Web3Forms is properly configured.');
+      } else {
+        alert(`❌ Email configuration error: ${testResult.error}`);
+      }
+    } catch (error) {
+      console.error('Test failed:', error);
+      alert(`❌ Test failed: ${error.message}`);
+    }
+  };
+
   // Load data function (moved here to be available for navigationActions)
   const loadData = async () => {
     setLoading(true);
@@ -311,6 +329,14 @@ function ContactAdmin() {
       description: 'Back to portfolio',
       type: 'action',
       action: goBackToPortfolio
+    },
+    {
+      id: 'test-email',
+      label: 'Test Email',
+      icon: '🧪',
+      description: 'Test email configuration',
+      type: 'action',
+      action: testEmailConfig
     },
     {
       id: 'logout',
