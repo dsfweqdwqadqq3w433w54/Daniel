@@ -12,7 +12,7 @@ import {
   getCurrentSession,
   supabase
 } from './supabaseClient';
-// import { sendEmailWithFallback, validateEmailConfig } from './emailService';
+import { sendEmailWithFallback, validateEmailConfig } from './emailService';
 
 function ContactAdmin() {
   const [submissions, setSubmissions] = useState([]);
@@ -146,19 +146,46 @@ function ContactAdmin() {
     setSendingReply(true);
 
     try {
-      // Temporary: Comment out email functionality for testing
-      console.log('Reply functionality temporarily disabled for testing');
+      // Check EmailJS configuration
+      const emailConfig = validateEmailConfig();
+      console.log('Email configuration:', emailConfig);
 
-      // Mark as replied
-      await markSubmissionAsRead(selectedSubmission.id);
+      // Clear any previous errors
+      setReplyError('');
 
-      setReplySuccess('demo');
+      // Prepare reply data
+      const replyData = {
+        to: replyForm.to,
+        toName: selectedSubmission.name,
+        fromName: currentUser?.email?.split('@')[0] || 'Admin',
+        fromEmail: currentUser?.email || 'admin@yoursite.com',
+        subject: replyForm.subject,
+        message: replyForm.message
+      };
 
-      setTimeout(() => {
-        setShowReplyModal(false);
-        setSelectedSubmission(null);
-        loadData(); // Refresh the data
-      }, 2000);
+      // Send email using EmailJS with fallback
+      const result = await sendEmailWithFallback(replyData);
+
+      if (result.success) {
+        // Mark as replied
+        await markSubmissionAsRead(selectedSubmission.id);
+
+        setReplySuccess(true);
+
+        // Show success message with method used
+        console.log(`Email sent successfully via ${result.method}`);
+
+        // Store the method for display in success message
+        setReplySuccess(result.method);
+
+        setTimeout(() => {
+          setShowReplyModal(false);
+          setSelectedSubmission(null);
+          loadData(); // Refresh the data
+        }, 4000);
+      } else {
+        throw new Error(result.error || 'Failed to send email');
+      }
 
     } catch (error) {
       console.error('Error sending reply:', error);
